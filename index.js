@@ -565,6 +565,20 @@ async function deleteStep(deadline) {
 
 const app = express();
 
+// Vercel rewrites every /api/* request to /api/index?path=<name>.
+// Restore the original path so the Express routes below match.
+app.use((req, res, next) => {
+    const u = new URL(req.url, "http://localhost");
+
+    if (u.pathname === "/api/index" && u.searchParams.get("path")) {
+        const original = u.searchParams.get("path");
+        u.searchParams.delete("path");
+        req.url = "/api/" + original + u.search;
+    }
+
+    next();
+});
+
 function safeEqual(a, b) {
     const x = Buffer.from(String(a));
     const y = Buffer.from(String(b));
@@ -692,6 +706,10 @@ app.all("/api/reset", auth, route(async req => {
 
     return { reset: target };
 }));
+
+app.use((req, res) => {
+    res.status(404).json({ error: "Not found", path: req.url });
+});
 
 module.exports = app;
 
